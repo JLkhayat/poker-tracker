@@ -631,16 +631,27 @@ function runOcr(dataUrl) {
   setOcrStatus('⏳ Analyse en cours...', 'info');
   var base64 = dataUrl.split(',')[1];
   var mediaType = dataUrl.split(';')[0].split(':')[1];
-  fetch(GS_URL, {
+  fetch('/.netlify/functions/claude-proxy', {
     method: 'POST',
-    headers: {'Content-Type': 'text/plain'},
-    body: JSON.stringify({action: 'ocr', imageData: base64, mediaType: mediaType})
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: [
+          {type: 'image', source: {type: 'base64', media_type: mediaType, data: base64}},
+          {type: 'text', text: OCR_PROMPT}
+        ]
+      }]
+    })
   }).then(function(r) { return r.json(); }).then(function(data) {
-    if (!data || data.status !== 'ok') {
-      setOcrStatus('❌ Erreur Apps Script: ' + JSON.stringify(data).slice(0,120), 'err');
+    if (!data || !data.content) {
+      setOcrStatus('❌ Erreur proxy: ' + JSON.stringify(data).slice(0,120), 'err');
       return;
     }
-    var text = data.text || '';
+    var text = '';
+    data.content.forEach(function(b) { if (b.type === 'text') text += b.text; });
     text = text.replace(/```json|```/g, '').trim();
     var parsed;
     try { parsed = JSON.parse(text); } catch(e) {
