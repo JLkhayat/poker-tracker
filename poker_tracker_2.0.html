@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poker Tracker 2.0</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--green:#00C853;--red:#FF3D00;--gold:#FFD600;--bg:#0A0A0A;--bg2:#141414;--bg3:#1E1E1E;--bg4:#282828;--border:rgba(255,255,255,0.08);--text:#F5F5F5;--muted:#777;--accent:#FFD600;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:100;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);}
+.logo span{color:var(--muted);font-size:14px;font-family:'DM Mono',monospace;margin-left:12px;vertical-align:middle;}
+nav{display:flex;gap:4px;}
+nav button{background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:7px 16px;border-radius:6px;cursor:pointer;transition:all 0.15s;}
+nav button:hover{color:var(--text);background:var(--bg3);}
+nav button.active{color:var(--accent);background:rgba(255,214,0,0.1);}
+main{padding:28px 32px;max-width:1400px;margin:0 auto;}
+.view{display:none;}.view.active{display:block;}
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:28px;}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;}
+.metric-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;}
+.metric-val{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;}
+.metric-val.pos{color:var(--green);}.metric-val.neg{color:var(--red);}.metric-val.neu{color:var(--accent);}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;}
+.ranking-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
+.chart-row{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:28px;}
+.chart-wrap{position:relative;height:280px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:500;}
+th.right,td.right{text-align:right;}
+td{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.03);}
+.rank-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--muted);}
+.rank-num.r1{color:var(--accent);}.rank-num.r2{color:#C0C0C0;}.rank-num.r3{color:#CD7F32;}
+.player-name{font-weight:500;}
+.score-val{font-family:'DM Mono',monospace;font-size:13px;}
+.score-val.pos{color:var(--green);}.score-val.neg{color:var(--red);}
+.win-bar-wrap{display:flex;align-items:center;gap:8px;}
+.win-bar{height:4px;border-radius:2px;background:var(--bg4);flex:1;overflow:hidden;}
+.win-bar-fill{height:100%;border-radius:2px;background:var(--green);}
+.win-pct{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:32px;text-align:right;}
+.games-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+.games-header h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--accent);}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;}
+.filter-row select{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 12px;font-family:'DM Sans',sans-serif;font-size:13px;}
+.btn-export{background:rgba(0,200,83,0.1);color:var(--green);border:1px solid rgba(0,200,83,0.25);border-radius:8px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;}
+.btn-sync{background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;}
+.game-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s;overflow:hidden;}
+.game-card:hover{border-color:rgba(255,255,255,0.16);}
+.game-card.expanded{border-color:var(--accent);}
+.game-card-header{display:grid;grid-template-columns:36px 100px 110px 1fr auto;align-items:center;padding:14px 20px;gap:12px;}
+.game-num{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--muted);}
+.game-date{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;}
+.venue-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;background:rgba(255,214,0,0.1);color:var(--accent);border:1px solid rgba(255,214,0,0.2);}
+.game-players-preview{display:flex;gap:5px;flex-wrap:wrap;}
+.mini-score{font-size:11px;font-family:'DM Mono',monospace;padding:2px 6px;border-radius:4px;}
+.mini-score.pos{background:rgba(0,200,83,0.12);color:var(--green);}
+.mini-score.neg{background:rgba(255,61,0,0.12);color:var(--red);}
+.mini-score.zero{background:var(--bg4);color:var(--muted);}
+.game-total{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);}
+.game-detail{display:none;padding:0 20px 16px;border-top:1px solid var(--border);}
+.game-card.expanded .game-detail{display:block;}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;}
+.detail-player{background:var(--bg3);border-radius:8px;padding:12px;}
+.dp-name{font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;}
+.dp-score{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;}
+.dp-score.pos{color:var(--green);}.dp-score.neg{color:var(--red);}.dp-score.zero{color:var(--muted);}
+.dp-hands{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;}
+.hand-badge{font-size:10px;padding:2px 6px;border-radius:3px;background:var(--bg4);color:var(--muted);}
+.hand-badge.carre{background:rgba(255,214,0,0.15);color:var(--accent);}
+.hand-badge.sf{background:rgba(147,51,234,0.2);color:#a78bfa;}
+#view-add{background:#F7F6F2;border-radius:14px;padding:20px;color:#1a1a1a;box-sizing:border-box;width:100%;}
+.add-card{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.05);padding:16px;margin-bottom:14px;box-sizing:border-box;width:100%;}
+.add-card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:#1a1a1a;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.add-card-title .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;}
+.form-row-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999;}
+.form-group input,.form-group select{background:#F7F6F2;border:1.5px solid #E5E3DC;color:#1a1a1a;border-radius:8px;padding:10px 12px;font-family:'DM Mono',monospace;font-size:14px;-webkit-appearance:none;width:100%;box-sizing:border-box;transition:border-color 0.15s;}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#c8a800;background:#fff;}
+.score-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
+.score-player-card{background:#F7F6F2;border:1.5px solid #E5E3DC;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:4px;box-sizing:border-box;min-width:0;transition:border-color 0.15s;}
+.score-player-card:focus-within{border-color:#c8a800;background:#fff;}
+.score-player-card .p-name{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999;}
+.score-player-card input{border:none!important;background:transparent!important;padding:0!important;font-size:22px!important;font-family:'Bebas Neue',sans-serif!important;color:#1a1a1a;width:100%;min-width:0;box-shadow:none!important;}
+.score-player-card input:focus{outline:none;}
+.score-player-card input.pos{color:#00a84a!important;}
+.score-player-card input.neg{color:#d93222!important;}
+.sum-display{background:#1a1a1a;border-radius:12px;padding:16px 20px;margin:8px 0 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.sum-item{display:flex;flex-direction:column;gap:3px;}
+.sum-item label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;}
+.sum-item span{font-family:'DM Mono',monospace;font-size:18px;}
+.sum-item span.pos{color:#00C853;}.sum-item span.neg{color:#FF3D00;}
+.btn-primary{background:#1a1a1a;color:#FFD600;border:none;border-radius:10px;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;flex:1;}
+.btn-danger{background:rgba(217,50,34,0.08);color:#d93222;border:1.5px solid rgba(217,50,34,0.2);border-radius:10px;padding:14px 20px;font-family:'DM Sans',sans-serif;font-size:15px;cursor:pointer;}
+.add-hand-block{border-radius:10px;padding:12px;margin-bottom:12px;box-sizing:border-box;width:100%;}
+.add-hand-block .ah-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1px;margin-bottom:12px;}
+.hand-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
+.add-hand-block .form-group input{background:rgba(255,255,255,0.55)!important;border-color:rgba(0,0,0,0.12)!important;color:#1a1a1a!important;}
+.hand-quick-btns{display:flex;gap:3px;margin-top:4px;width:100%;}
+.hqb{background:rgba(255,255,255,0.55);border:1px solid rgba(0,0,0,0.12);color:#555;border-radius:6px;padding:5px 2px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;flex:1;min-width:0;text-align:center;font-weight:500;transition:all 0.12s;}
+.hqb:hover{background:rgba(255,255,255,0.9);color:#1a1a1a;}
+.hands-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.hand-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.hand-title{padding:12px 20px;border-bottom:1px solid var(--border);font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+.hand-title.carre{color:var(--accent);}.hand-title.sf{color:#a78bfa;}.hand-title.tapis{color:#38bdf8;}
+.sort-btns{display:flex;gap:4px;}
+.sort-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:3px 10px;font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;transition:all 0.15s;}
+.sort-btn.active{background:rgba(255,214,0,0.12);color:var(--accent);border-color:rgba(255,214,0,0.3);}
+.monthly-table th,.monthly-table td{padding:8px 12px;font-size:12px;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transform:translateY(8px);transition:all 0.2s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.ok{border-color:var(--green);color:var(--green);}
+.toast.err{border-color:var(--red);color:var(--red);}
+@media(max-width:900px){
+  main{padding:12px;}header{padding:12px 16px;}
+  .logo span{display:none;}nav button{padding:6px 10px;font-size:12px;}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .ranking-grid,.chart-row,.hands-grid{grid-template-columns:1fr;}
+  .game-card-header{grid-template-columns:30px 90px 1fr;gap:8px;padding:10px 12px;}
+  .game-venue,.game-total{display:none;}
+  .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #view-add{padding:12px;}
+}
+@media(max-width:480px){nav button{padding:5px 7px;font-size:11px;}.metric-val{font-size:24px;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">&#9824; Poker <span>2.0</span></div>
+  <nav>
+    <button class="active" onclick="showView('summary')">Resume</button>
+    <button onclick="showView('games')">Parties</button>
+    <button onclick="showView('add')">+ Ajouter</button>
+    <button onclick="showView('hands')">Mains</button>
+    <button onclick="showView('stats')">Stats</button>
+  </nav>
+</header>
+<main>
+
+<div class="view active" id="view-summary">
+  <div class="metrics" id="metrics-row"></div>
+  <div class="ranking-grid">
+    <div class="card"><div class="card-header">Classement 2026</div><table id="ranking-table"></table></div>
+    <div class="card"><div class="card-header">Score cumule</div><div style="padding:16px;" class="chart-wrap"><canvas id="scoreChart"></canvas></div></div>
+  </div>
+  <div class="chart-row">
+    <div class="card"><div class="card-header">Evolution cumulative</div><div style="padding:16px;" class="chart-wrap"><canvas id="evolutionChart"></canvas></div></div>
+    <div class="card"><div class="card-header">Taux de victoire</div><div style="padding:16px;" class="chart-wrap"><canvas id="winChart"></canvas></div></div>
+  </div>
+</div>
+
+<div class="view" id="view-games">
+  <div class="games-header">
+    <h2>Historique</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="sync-btn" class="btn-sync" onclick="syncAllToSheets()">Sync Sheets</button>
+      <button class="btn-export" onclick="exportToExcel()">Export Excel</button>
+    </div>
+    <div class="filter-row">
+      <select id="filter-month" onchange="renderGames()">
+        <option value="">Tous les mois</option>
+        <option value="01">Janvier</option><option value="02">Fevrier</option>
+        <option value="03">Mars</option><option value="04">Avril</option>
+        <option value="05">Mai</option><option value="06">Juin</option>
+      </select>
+      <select id="filter-venue" onchange="renderGames()"><option value="">Tous les lieux</option></select>
+      <select id="filter-player" onchange="renderGames()"><option value="">Tous les joueurs</option></select>
+    </div>
+  </div>
+  <div id="games-list"></div>
+</div>
+
+<div class="view" id="view-add">
+  <div class="add-card">
+    <div class="add-card-title"><span class="dot"></span> Nouvelle Partie</div>
+    <div class="form-row-2">
+      <div class="form-group"><label>Date</label><input type="date" id="new-date"></div>
+      <div class="form-group"><label>Lieu</label>
+        <select id="new-venue"><option>Maher</option><option>Samy</option><option>Mica</option><option>Jean Loup</option><option>Yves</option><option>Ralf</option><option>Nagi</option></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- OCR SCAN CARD -->
+  <div class="add-card" id="ocr-card">
+    <div class="add-card-title"><span class="dot" style="background:#38bdf8;"></span> Scanner la feuille</div>
+    <div id="ocr-drop-zone" style="border:2px dashed #c8d8e0;border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all 0.15s;background:#f0f8fc;" onclick="document.getElementById('ocr-file-input').click()">
+      <div style="font-size:32px;margin-bottom:8px;">📷</div>
+      <div style="font-size:14px;font-weight:600;color:#1a6a8a;margin-bottom:4px;">Prendre ou choisir une photo</div>
+      <div style="font-size:12px;color:#999;">Appuie ici pour ouvrir l'appareil photo ou la galerie</div>
+      <input type="file" id="ocr-file-input" accept="image/*" style="display:none;" onchange="handleOcrImage(event)">
+    </div>
+    <div id="ocr-preview-wrap" style="display:none;margin-top:12px;">
+      <img id="ocr-preview-img" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;border:1px solid #ddd;">
+    </div>
+    <div id="ocr-status" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;font-size:13px;"></div>
+  </div>
+  <div class="add-card">
+    <div class="add-card-title"><span class="dot" style="background:#00C853;"></span> Scores (LL)</div>
+    <div class="score-grid" id="score-inputs"></div>
+    <div class="sum-display">
+      <div class="sum-item"><label>Gains</label><span id="sum-pos" class="pos">0</span></div>
+      <div class="sum-item"><label>Pertes</label><span id="sum-neg" class="neg">0</span></div>
+      <div class="sum-item"><label>Balance</label><span id="sum-bal" style="color:#ccc;">0</span></div>
+    </div>
+  </div>
+  <div class="add-card">
+    <div class="add-card-title"><span class="dot" style="background:#a78bfa;"></span> Mains Speciales</div>
+    <div id="hands-inputs"></div>
+  </div>
+  <div style="display:flex;gap:10px;padding-bottom:28px;">
+    <button class="btn-primary" onclick="addGame()">Enregistrer</button>
+    <button class="btn-danger" onclick="clearForm()">Effacer</button>
+  </div>
+</div>
+
+<div class="view" id="view-hands">
+  <div class="games-header"><h2>Mains Speciales</h2></div>
+  <div class="hands-grid">
+    <div class="hand-card">
+      <div class="hand-title carre"><span>Carres</span>
+        <div class="sort-btns" data-hand="carre">
+          <button class="sort-btn active" data-sort="total" onclick="setHandSort('carre','total')">Total</button>
+          <button class="sort-btn" data-sort="avg" onclick="setHandSort('carre','avg')">Moy/partie</button>
+        </div>
+      </div>
+      <table id="carre-table"></table>
+    </div>
+    <div class="hand-card">
+      <div class="hand-title sf"><span>Straight Flush</span>
+        <div class="sort-btns" data-hand="sf">
+          <button class="sort-btn active" data-sort="total" onclick="setHandSort('sf','total')">Total</button>
+          <button class="sort-btn" data-sort="avg" onclick="setHandSort('sf','avg')">Moy/partie</button>
+        </div>
+      </div>
+      <table id="sf-table"></table>
+    </div>
+    <div class="hand-card">
+      <div class="hand-title tapis"><span>Tapis</span>
+        <div class="sort-btns" data-hand="tapis">
+          <button class="sort-btn active" data-sort="total" onclick="setHandSort('tapis','total')">Total</button>
+          <button class="sort-btn" data-sort="avg" onclick="setHandSort('tapis','avg')">Moy/partie</button>
+        </div>
+      </div>
+      <table id="tapis-table"></table>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-stats">
+  <div class="games-header"><h2>Statistiques</h2></div>
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card"><div class="card-header">Score mensuel par joueur</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="monthly-table" id="monthly-chart-table" style="min-width:600px;"></table></div>
+    </div>
+    <div class="card"><div class="card-header">Recapitulatif mensuel</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="monthly-table" id="monthly-table" style="min-width:500px;"></table></div>
+    </div>
+    <div class="card"><div class="card-header">Meilleure / pire partie par joueur</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table id="bestworst-table" style="min-width:500px;"></table></div>
+    </div>
+  </div>
+</div>
+
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+var PLAYERS = ['Maher','Yves','Jean Loup','Samy','Guest','Nagi','Mica','Ralf'];
+var PLAYER_COLORS = {'Maher':'#FF6B6B','Yves':'#4ECDC4','Jean Loup':'#FFE66D','Samy':'#A78BFA','Guest':'#F97316','Nagi':'#34D399','Mica':'#FFD600','Ralf':'#60A5FA'};
+var MONTHS = {'01':'Janvier','02':'Fevrier','03':'Mars','04':'Avril','05':'Mai','06':'Juin','07':'Juillet','08':'Aout','09':'Septembre','10':'Octobre','11':'Novembre','12':'Decembre'};
+var GS_URL = 'https://script.google.com/macros/s/AKfycbzvTBvUNAfXjpSZcP4D_XSJ4eU7NN1ZKwnRBUnlAFi8b9ehBtPnc2od-c3lMMZOFZWoig/exec';
+var GAMES = [{"game":1,"date":"2026-01-02","venue":"Maher","scores":{"Maher":1300,"Yves":-1000,"Jean Loup":0,"Samy":800,"Guest":0,"Nagi":0,"Mica":400,"Ralf":-1500},"carre":{"Maher":2,"Yves":3,"Samy":2,"Mica":1},"sf":{"Maher":1,"Samy":1,"Mica":1,"Ralf":1},"tapis":{}},{"game":2,"date":"2026-01-04","venue":"Samy","scores":{"Maher":-750,"Yves":-150,"Jean Loup":0,"Samy":1100,"Guest":0,"Nagi":0,"Mica":-200,"Ralf":0},"carre":{"Maher":1,"Yves":3,"Samy":4,"Mica":2},"sf":{"Samy":1},"tapis":{}},{"game":3,"date":"2026-01-07","venue":"Maher","scores":{"Maher":-200,"Yves":0,"Jean Loup":-150,"Samy":-1750,"Guest":0,"Nagi":0,"Mica":2100,"Ralf":0},"carre":{"Maher":2,"Jean Loup":3,"Samy":2,"Mica":2},"sf":{"Jean Loup":1,"Samy":1},"tapis":{}},{"game":4,"date":"2026-01-11","venue":"Samy","scores":{"Maher":-1350,"Yves":0,"Jean Loup":-600,"Samy":2400,"Guest":0,"Nagi":0,"Mica":0,"Ralf":-450},"carre":{"Maher":3,"Jean Loup":4,"Samy":5,"Ralf":4},"sf":{},"tapis":{}},{"game":5,"date":"2026-01-13","venue":"Maher","scores":{"Maher":1050,"Yves":-1100,"Jean Loup":-50,"Samy":-700,"Guest":0,"Nagi":0,"Mica":150,"Ralf":650},"carre":{"Maher":2,"Yves":1,"Jean Loup":2,"Samy":2,"Ralf":1},"sf":{},"tapis":{}},{"game":6,"date":"2026-01-16","venue":"Samy","scores":{"Maher":-850,"Yves":4100,"Jean Loup":-400,"Samy":-2500,"Guest":0,"Nagi":0,"Mica":1150,"Ralf":-1500},"carre":{"Maher":2,"Yves":3,"Jean Loup":1,"Samy":3,"Mica":1,"Ralf":1},"sf":{"Jean Loup":1,"Mica":2},"tapis":{}},{"game":7,"date":"2026-01-18","venue":"Samy","scores":{"Maher":1350,"Yves":-2100,"Jean Loup":-750,"Samy":1350,"Guest":0,"Nagi":0,"Mica":-1050,"Ralf":1200},"carre":{"Maher":4,"Jean Loup":1,"Samy":2,"Ralf":3},"sf":{"Maher":1,"Jean Loup":1,"Samy":1,"Mica":1,"Ralf":1},"tapis":{}},{"game":8,"date":"2026-01-20","venue":"Mica","scores":{"Maher":-600,"Yves":0,"Jean Loup":-150,"Samy":3700,"Guest":0,"Nagi":0,"Mica":-1250,"Ralf":-1700},"carre":{"Samy":3,"Mica":1},"sf":{"Jean Loup":2},"tapis":{}},{"game":9,"date":"2026-01-23","venue":"Maher","scores":{"Maher":1900,"Yves":0,"Jean Loup":-1550,"Samy":-1050,"Guest":0,"Nagi":0,"Mica":650,"Ralf":50},"carre":{"Maher":1,"Jean Loup":5,"Samy":2,"Mica":2,"Ralf":1},"sf":{"Maher":1},"tapis":{}},{"game":10,"date":"2026-01-25","venue":"Samy","scores":{"Maher":-1750,"Yves":0,"Jean Loup":600,"Samy":50,"Guest":1650,"Nagi":0,"Mica":0,"Ralf":-550},"carre":{"Maher":2,"Samy":1,"Guest":4},"sf":{"Samy":1},"tapis":{}},{"game":11,"date":"2026-01-30","venue":"Samy","scores":{"Maher":1750,"Yves":0,"Jean Loup":550,"Samy":-2250,"Guest":0,"Nagi":0,"Mica":650,"Ralf":-700},"carre":{"Maher":4,"Jean Loup":3,"Samy":2,"Mica":2,"Ralf":1},"sf":{"Maher":2,"Jean Loup":1,"Mica":1},"tapis":{}},{"game":12,"date":"2026-02-01","venue":"Samy","scores":{"Maher":-1300,"Yves":0,"Jean Loup":750,"Samy":-650,"Guest":0,"Nagi":0,"Mica":1450,"Ralf":-250},"carre":{"Maher":1,"Jean Loup":6,"Samy":1,"Mica":2,"Ralf":2},"sf":{"Mica":2,"Ralf":2},"tapis":{}},{"game":13,"date":"2026-02-08","venue":"Samy","scores":{"Maher":-300,"Yves":0,"Jean Loup":150,"Samy":600,"Guest":0,"Nagi":0,"Mica":-1200,"Ralf":750},"carre":{"Maher":2,"Jean Loup":4,"Mica":1,"Ralf":3},"sf":{"Jean Loup":1,"Samy":3,"Ralf":1},"tapis":{}},{"game":14,"date":"2026-02-10","venue":"Maher","scores":{"Maher":-500,"Yves":-1000,"Jean Loup":2150,"Samy":1200,"Guest":0,"Nagi":0,"Mica":-350,"Ralf":-1500},"carre":{"Maher":2,"Yves":2,"Jean Loup":3,"Samy":7,"Mica":1},"sf":{},"tapis":{}},{"game":15,"date":"2026-02-12","venue":"Samy","scores":{"Maher":-1450,"Yves":2400,"Jean Loup":1000,"Samy":-550,"Guest":0,"Nagi":0,"Mica":-550,"Ralf":-850},"carre":{"Yves":1,"Jean Loup":3,"Samy":2,"Mica":3,"Ralf":1},"sf":{"Jean Loup":1,"Ralf":1},"tapis":{}},{"game":16,"date":"2026-02-15","venue":"Maher","scores":{"Maher":-900,"Yves":2650,"Jean Loup":0,"Samy":-600,"Guest":0,"Nagi":-650,"Mica":-500,"Ralf":0},"carre":{"Maher":1,"Yves":3,"Nagi":2},"sf":{"Maher":1,"Yves":1,"Mica":1},"tapis":{}},{"game":17,"date":"2026-02-20","venue":"Samy","scores":{"Maher":1250,"Yves":-1450,"Jean Loup":0,"Samy":350,"Guest":0,"Nagi":0,"Mica":850,"Ralf":-1000},"carre":{"Maher":5,"Yves":2,"Samy":3,"Mica":2,"Ralf":1},"sf":{"Mica":1},"tapis":{}},{"game":18,"date":"2026-02-22","venue":"Maher","scores":{"Maher":-950,"Yves":0,"Jean Loup":-1750,"Samy":2100,"Guest":0,"Nagi":0,"Mica":350,"Ralf":250},"carre":{"Yves":1,"Jean Loup":1,"Samy":2,"Mica":2},"sf":{},"tapis":{}},{"game":19,"date":"2026-02-22","venue":"Maher","scores":{"Maher":-1150,"Yves":1850,"Jean Loup":-1400,"Samy":1150,"Guest":0,"Nagi":0,"Mica":-1350,"Ralf":900},"carre":{"Jean Loup":1,"Samy":3,"Mica":1,"Ralf":1},"sf":{"Yves":2},"tapis":{}},{"game":20,"date":"2026-02-26","venue":"Samy","scores":{"Maher":1000,"Yves":0,"Jean Loup":850,"Samy":-1850,"Guest":0,"Nagi":0,"Mica":650,"Ralf":-650},"carre":{"Maher":3,"Yves":1,"Jean Loup":1,"Samy":3,"Ralf":2},"sf":{},"tapis":{}},{"game":21,"date":"2026-03-01","venue":"Samy","scores":{"Maher":-850,"Yves":750,"Jean Loup":0,"Samy":-1000,"Guest":0,"Nagi":0,"Mica":1450,"Ralf":-350},"carre":{"Maher":2,"Yves":3,"Samy":3,"Mica":4,"Ralf":2},"sf":{"Maher":1,"Yves":5,"Samy":1},"tapis":{}},{"game":22,"date":"2026-03-04","venue":"Samy","scores":{"Maher":-1100,"Yves":-600,"Jean Loup":2250,"Samy":-2000,"Guest":0,"Nagi":0,"Mica":0,"Ralf":1450},"carre":{"Maher":2,"Yves":2,"Jean Loup":7,"Samy":1,"Ralf":2},"sf":{"Yves":1,"Jean Loup":1},"tapis":{}},{"game":23,"date":"2026-03-08","venue":"Samy","scores":{"Maher":-400,"Yves":-700,"Jean Loup":-400,"Samy":0,"Guest":0,"Nagi":0,"Mica":600,"Ralf":900},"carre":{"Yves":2,"Jean Loup":1,"Samy":1,"Mica":3,"Ralf":1},"sf":{},"tapis":{}},{"game":24,"date":"2026-03-10","venue":"Samy","scores":{"Maher":0,"Yves":250,"Jean Loup":1050,"Samy":-650,"Guest":0,"Nagi":0,"Mica":1050,"Ralf":-1700},"carre":{"Yves":3,"Jean Loup":1,"Samy":4,"Mica":2,"Ralf":2},"sf":{"Yves":2,"Mica":2},"tapis":{}},{"game":25,"date":"2026-03-14","venue":"Samy","scores":{"Maher":-1850,"Yves":0,"Jean Loup":100,"Samy":950,"Guest":0,"Nagi":0,"Mica":150,"Ralf":650},"carre":{"Maher":2,"Jean Loup":1,"Samy":4,"Mica":1,"Ralf":2},"sf":{"Maher":1,"Samy":1,"Mica":2},"tapis":{}},{"game":26,"date":"2026-03-15","venue":"Samy","scores":{"Maher":-1000,"Yves":0,"Jean Loup":200,"Samy":50,"Guest":0,"Nagi":0,"Mica":650,"Ralf":100},"carre":{"Maher":2,"Jean Loup":4,"Samy":3,"Mica":2,"Ralf":1},"sf":{},"tapis":{}},{"game":27,"date":"2026-03-17","venue":"Samy","scores":{"Maher":0,"Yves":-1450,"Jean Loup":-350,"Samy":-1700,"Guest":0,"Nagi":0,"Mica":2900,"Ralf":600},"carre":{"Jean Loup":2,"Samy":3,"Mica":3,"Ralf":3},"sf":{"Yves":1,"Ralf":1},"tapis":{}},{"game":28,"date":"2026-03-20","venue":"Maher","scores":{"Maher":-300,"Yves":0,"Jean Loup":-650,"Samy":50,"Guest":0,"Nagi":0,"Mica":-300,"Ralf":1200},"carre":{"Maher":3,"Samy":3,"Mica":3,"Ralf":2},"sf":{"Jean Loup":2,"Ralf":1},"tapis":{}},{"game":29,"date":"2026-03-22","venue":"Maher","scores":{"Maher":-650,"Yves":-450,"Jean Loup":-1200,"Samy":-2000,"Guest":0,"Nagi":0,"Mica":2300,"Ralf":2000},"carre":{"Maher":1,"Yves":3,"Jean Loup":1,"Samy":3,"Ralf":4},"sf":{"Jean Loup":1},"tapis":{}},{"game":30,"date":"2026-03-27","venue":"Maher","scores":{"Maher":1650,"Yves":0,"Jean Loup":-1450,"Samy":-1200,"Guest":0,"Nagi":0,"Mica":1350,"Ralf":-350},"carre":{"Maher":2,"Jean Loup":4,"Samy":3,"Ralf":3},"sf":{"Samy":1},"tapis":{}},{"game":31,"date":"2026-03-29","venue":"Maher","scores":{"Maher":650,"Yves":-1250,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":-1000,"Mica":-500,"Ralf":2100},"carre":{"Maher":1,"Yves":1,"Jean Loup":4,"Nagi":1,"Ralf":2},"sf":{"Ralf":1},"tapis":{}},{"game":32,"date":"2026-03-31","venue":"Maher","scores":{"Maher":1750,"Yves":-3000,"Jean Loup":1850,"Samy":0,"Guest":0,"Nagi":0,"Mica":400,"Ralf":-1000},"carre":{"Maher":2,"Jean Loup":7,"Mica":2,"Ralf":2},"sf":{"Yves":1,"Jean Loup":1,"Mica":1},"tapis":{}},{"game":33,"date":"2026-04-04","venue":"Maher","scores":{"Maher":-800,"Yves":0,"Jean Loup":-750,"Samy":0,"Guest":0,"Nagi":700,"Mica":50,"Ralf":800},"carre":{"Maher":4,"Jean Loup":6,"Nagi":4,"Mica":5,"Ralf":1},"sf":{"Maher":1},"tapis":{}},{"game":34,"date":"2026-04-06","venue":"Samy","scores":{"Maher":-200,"Yves":-750,"Jean Loup":-650,"Samy":-150,"Guest":0,"Nagi":0,"Mica":100,"Ralf":1650},"carre":{"Yves":2,"Jean Loup":1,"Samy":3,"Mica":2,"Ralf":2},"sf":{"Yves":1,"Ralf":1},"tapis":{}}];
+
+function gameToRow(g) {
+  var sc = PLAYERS.map(function(p){return g.scores[p]||0;});
+  var tp = PLAYERS.reduce(function(a,p){return a+Math.max(0,g.scores[p]||0);},0);
+  var nP = PLAYERS.filter(function(p){return Math.abs(g.scores[p]||0)>0.05;}).length;
+  var nW = PLAYERS.filter(function(p){return (g.scores[p]||0)>0.05;}).length;
+  var ca = PLAYERS.map(function(p){return g.carre[p]||0;});
+  var sa = PLAYERS.map(function(p){return g.sf[p]||0;});
+  var ta = PLAYERS.map(function(p){return g.tapis[p]||0;});
+  return [g.game,g.date,g.venue].concat(sc,[Math.round(tp),nP,nW],ca,sa,ta);
+}
+function rowToGame(r) {
+  if(!r[0]||isNaN(Number(r[0])))return null;
+  var g={game:Number(r[0]),date:r[1]?String(r[1]).slice(0,10):'',venue:r[2]||'',scores:{},carre:{},sf:{},tapis:{}};
+  PLAYERS.forEach(function(p,i){g.scores[p]=parseFloat(r[3+i])||0;});
+  PLAYERS.forEach(function(p,i){
+    var c=parseInt(r[14+i])||0,s=parseInt(r[22+i])||0,t=parseInt(r[30+i])||0;
+    if(c)g.carre[p]=c; if(s)g.sf[p]=s; if(t)g.tapis[p]=t;
+  });
+  return g;
+}
+function loadData() {
+  showToast('Chargement...');
+  fetch(GS_URL).then(function(r){return r.json();}).then(function(rows){
+    var data=rows.filter(function(r){return r[0]&&!isNaN(Number(r[0]));});
+    if(data.length>0) GAMES=data.map(rowToGame).filter(Boolean);
+    showToast('Donnees chargees','ok');
+    renderSummary();
+  }).catch(function(){
+    var s=localStorage.getItem('poker2026');
+    if(s)try{GAMES=JSON.parse(s);}catch(e){}
+    showToast('Mode hors-ligne','err');
+    renderSummary();
+  });
+}
+function saveGame(g) {
+  localStorage.setItem('poker2026',JSON.stringify(GAMES));
+  fetch(GS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'add',row:gameToRow(g)})}).catch(function(e){console.error(e);});
+}
+function deleteGameRemote(num) {
+  localStorage.setItem('poker2026',JSON.stringify(GAMES));
+  fetch(GS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'delete',game:num})}).catch(function(e){console.error(e);});
+}
+function syncAllToSheets() {
+  var btn=document.getElementById('sync-btn');
+  if(btn){btn.textContent='Envoi...';btn.disabled=true;}
+  fetch(GS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'replace_all',rows:GAMES.map(gameToRow)})})
+    .then(function(){showToast(GAMES.length+' parties synchro !','ok');if(btn){btn.textContent='Sync Sheets';btn.disabled=false;}})
+    .catch(function(e){showToast('Erreur reseau: '+e.message,'err');console.error(e);if(btn){btn.textContent='Sync Sheets';btn.disabled=false;}});
+}
+
+function playerStats() {
+  var st={};
+  PLAYERS.forEach(function(p){st[p]={total:0,played:0,won:0,best:-Infinity,worst:Infinity,carre:0,sf:0,tapis:0};});
+  GAMES.forEach(function(g){
+    PLAYERS.forEach(function(p){
+      var s=g.scores[p]||0;
+      if(Math.abs(s)>0.05){st[p].total+=s;st[p].played++;if(s>0)st[p].won++;if(s>st[p].best)st[p].best=s;if(s<st[p].worst)st[p].worst=s;}
+      st[p].carre+=(g.carre[p]||0);st[p].sf+=(g.sf[p]||0);st[p].tapis+=(g.tapis[p]||0);
+    });
+  });
+  PLAYERS.forEach(function(p){if(!isFinite(st[p].best))st[p].best=0;if(!isFinite(st[p].worst))st[p].worst=0;});
+  return st;
+}
+function getRanking(){var st=playerStats();return PLAYERS.slice().sort(function(a,b){return st[b].total-st[a].total;});}
+function monthlyStats(){
+  var mo={};
+  GAMES.forEach(function(g){
+    if(!g.date)return;var m=g.date.slice(5,7);
+    if(!mo[m])mo[m]={};
+    PLAYERS.forEach(function(p){
+      if(!mo[m][p])mo[m][p]={total:0,played:0,won:0};
+      var s=g.scores[p]||0;
+      if(Math.abs(s)>0.05){mo[m][p].total+=s;mo[m][p].played++;if(s>0)mo[m][p].won++;}
+    });
+  });
+  return mo;
+}
+function fmt(v){var n=Math.round(v);return(n>=0?'+':'')+n.toLocaleString();}
+
+var sCh,eCh,wCh;
+function renderSummary(){
+  var st=playerStats(),rk=getRanking(),tG=GAMES.length;
+  var tP=GAMES.reduce(function(a,g){return a+PLAYERS.reduce(function(b,p){return b+Math.max(0,g.scores[p]||0);},0);},0);
+  var ld=rk[0],ls=st[ld].total;
+  var bV=PLAYERS.reduce(function(a,p){return Math.max(a,st[p].best);},-Infinity);
+  var wV=PLAYERS.reduce(function(a,p){return Math.min(a,st[p].worst);},Infinity);
+  var bP=PLAYERS.filter(function(p){return st[p].best===bV;})[0]||'';
+  var wP=PLAYERS.filter(function(p){return st[p].worst===wV;})[0]||'';
+  document.getElementById('metrics-row').innerHTML=
+    '<div class="metric"><div class="metric-label">Parties jouees</div><div class="metric-val neu">'+tG+'</div><div class="metric-sub">saison 2026</div></div>'+
+    '<div class="metric"><div class="metric-label">Leader</div><div class="metric-val neu" style="font-size:22px;">'+ld+'</div><div class="metric-val pos" style="font-size:28px;">'+fmt(ls)+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Meilleur gain unique</div><div class="metric-val pos">'+fmt(bV)+'</div><div class="metric-val neu" style="font-size:20px;">'+bP+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Pire perte unique</div><div class="metric-val neg">'+fmt(wV)+'</div><div class="metric-val neu" style="font-size:20px;">'+wP+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Total pots</div><div class="metric-val neu">'+Math.round(tP/1000)+'k</div></div>';
+
+  var rH='<thead><tr><th>#</th><th>Joueur</th><th class="right">Score</th><th class="right">Parties</th><th>Victoires</th></tr></thead><tbody>';
+  rk.forEach(function(p,i){
+    var s=st[p],rc=i===0?'r1':i===1?'r2':i===2?'r3':'',pct=s.played?Math.round(s.won/s.played*100):0;
+    rH+='<tr><td><span class="rank-num '+rc+'">'+(i+1)+'</span></td><td class="player-name">'+p+'</td><td class="right"><span class="score-val '+(s.total>=0?'pos':'neg')+'">'+fmt(s.total)+'</span></td><td class="right" style="color:var(--muted)">'+s.played+'</td><td><div class="win-bar-wrap"><div class="win-bar"><div class="win-bar-fill" style="width:'+pct+'%"></div></div><span class="win-pct">'+pct+'%</span></div></td></tr>';
+  });
+  document.getElementById('ranking-table').innerHTML=rH+'</tbody>';
+
+  if(sCh)sCh.destroy();
+  sCh=new Chart(document.getElementById('scoreChart'),{type:'bar',data:{labels:rk,datasets:[{data:rk.map(function(p){return Math.round(st[p].total);}),backgroundColor:rk.map(function(p){return st[p].total>=0?'#00C85388':'#FF3D0088';}),borderColor:rk.map(function(p){return st[p].total>=0?'#00C853':'#FF3D00';}),borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return fmt(c.raw)+' LL';}}}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#777',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#777',font:{size:10},callback:function(v){return (v/1000).toFixed(0)+'k';}}}}}});
+
+  if(eCh)eCh.destroy();
+  var labs=GAMES.map(function(g){return g.date?g.date.slice(5):'#'+g.game;});
+  var dsets=PLAYERS.filter(function(p){return st[p].played>0;}).map(function(p){var c=0;return{label:p,data:GAMES.map(function(g){c+=(g.scores[p]||0);return Math.round(c);}),borderColor:PLAYER_COLORS[p],backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2};});
+  eCh=new Chart(document.getElementById('evolutionChart'),{type:'line',data:{labels:labs,datasets:dsets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#777',font:{size:11},boxWidth:12,padding:12}},tooltip:{mode:'index',intersect:false,callbacks:{label:function(c){return c.dataset.label+': '+fmt(c.raw);}}}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#777',font:{size:10},maxTicksLimit:10}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#777',font:{size:10},callback:function(v){return (v/1000).toFixed(0)+'k';}}}}}});
+
+  if(wCh)wCh.destroy();
+  var aP=rk.filter(function(p){return st[p].played>0;});
+  wCh=new Chart(document.getElementById('winChart'),{type:'bar',data:{labels:aP,datasets:[{data:aP.map(function(p){return st[p].played?Math.round(st[p].won/st[p].played*100):0;}),backgroundColor:aP.map(function(p){return PLAYER_COLORS[p]+'CC';}),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.raw+'%';}}}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#777',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#777',font:{size:10},callback:function(v){return v+'%';}},min:0,max:100}}}});
+}
+
+function renderGames(){
+  var mF=document.getElementById('filter-month').value,vF=document.getElementById('filter-venue').value,pF=document.getElementById('filter-player').value;
+  var vEl=document.getElementById('filter-venue');
+  if(vEl.options.length<=1){var vs=[];GAMES.forEach(function(g){if(g.venue&&vs.indexOf(g.venue)===-1)vs.push(g.venue);});vs.forEach(function(v){var o=document.createElement('option');o.value=v;o.text=v;vEl.appendChild(o);});}
+  var pEl=document.getElementById('filter-player');
+  if(pEl.options.length<=1){PLAYERS.forEach(function(p){var o=document.createElement('option');o.value=p;o.text=p;pEl.appendChild(o);});}
+  var fl=GAMES.slice().reverse();
+  if(mF)fl=fl.filter(function(g){return g.date&&g.date.slice(5,7)===mF;});
+  if(vF)fl=fl.filter(function(g){return g.venue===vF;});
+  if(pF)fl=fl.filter(function(g){return Math.abs(g.scores[pF]||0)>0.05;});
+  var con=document.getElementById('games-list');
+  if(!fl.length){con.innerHTML='<p style="color:var(--muted);padding:20px;">Aucune partie.</p>';return;}
+  con.innerHTML=fl.map(function(g){
+    var pi=PLAYERS.filter(function(p){return Math.abs(g.scores[p]||0)>0.05;});
+    var tp=pi.reduce(function(a,p){return a+Math.max(0,g.scores[p]||0);},0);
+    var pv=pi.map(function(p){var s=g.scores[p],cl=s>0?'pos':s<0?'neg':'zero';return '<span class="mini-score '+cl+'">'+p+': '+fmt(s)+'</span>';}).join('');
+    var ds=g.date?g.date.slice(8)+'/'+g.date.slice(5,7)+'/'+g.date.slice(0,4):'';
+    var det=PLAYERS.filter(function(p){return Math.abs(g.scores[p]||0)>0.05||(g.carre[p]||0)+(g.sf[p]||0)+(g.tapis[p]||0)>0;}).map(function(p){
+      var s=g.scores[p]||0,cl=s>0.05?'pos':s<-0.05?'neg':'zero',hd='';
+      if(g.carre[p])hd+='<span class="hand-badge carre">Carre x'+g.carre[p]+'</span>';
+      if(g.sf[p])hd+='<span class="hand-badge sf">SF x'+g.sf[p]+'</span>';
+      if(g.tapis[p])hd+='<span class="hand-badge">Tapis x'+g.tapis[p]+'</span>';
+      return '<div class="detail-player"><div class="dp-name">'+p+'</div><div class="dp-score '+cl+'">'+fmt(s)+'</div>'+(hd?'<div class="dp-hands">'+hd+'</div>':'')+'</div>';
+    }).join('');
+    return '<div class="game-card" id="gc-'+g.game+'" onclick="toggleGame('+g.game+')">'+
+      '<div class="game-card-header"><div class="game-num">#'+g.game+'</div><div class="game-date">'+ds+'</div><div class="game-venue"><span class="venue-badge">@ '+(g.venue||'')+'</span></div><div class="game-players-preview">'+pv+'</div><div class="game-total">'+Math.round(tp)+' LL</div></div>'+
+      '<div class="game-detail"><div class="detail-grid">'+det+'</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center;"><span style="font-size:12px;color:var(--muted)">'+pi.length+' joueurs</span><button onclick="event.stopPropagation();deleteGame('+g.game+',this)" style="margin-left:auto;background:rgba(255,61,0,0.1);color:var(--red);border:1px solid rgba(255,61,0,0.2);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;">Supprimer</button></div></div>'+
+      '</div>';
+  }).join('');
+}
+function toggleGame(n){var el=document.getElementById('gc-'+n);if(el)el.classList.toggle('expanded');}
+function deleteGame(num,btn){
+  if(btn.dataset.confirm!=='yes'){btn.dataset.confirm='yes';btn.textContent='Confirmer ?';btn.style.background='rgba(255,61,0,0.3)';setTimeout(function(){if(btn.dataset.confirm==='yes'){btn.dataset.confirm='';btn.textContent='Supprimer';btn.style.background='rgba(255,61,0,0.1)';}},2500);return;}
+  GAMES=GAMES.filter(function(g){return g.game!==num;});
+  renderGames();showToast('Partie supprimee','ok');deleteGameRemote(num);
+}
+
+var HAND_DEFS=[
+  {label:'Carres',color:'#a07800',bg:'#FFFBEA',border:'#F0D060',selBg:'#FFD600',selBorder:'#c8a800',selColor:'#6b5000'},
+  {label:'Straight Flush',color:'#6d3fc0',bg:'#F5F0FF',border:'#C4A8F5',selBg:'#a78bfa',selBorder:'#7c5cbf',selColor:'#fff'},
+  {label:'Tapis',color:'#0e7a9e',bg:'#EFF9FD',border:'#90D4EA',selBg:'#38bdf8',selBorder:'#1890c0',selColor:'#fff'}
+];
+function pid(p){return p.replace(/\s+/g,'_');}
+function renderAddForm(){
+  var dEl=document.getElementById('new-date');
+  if(!dEl.value)dEl.value=new Date().toISOString().slice(0,10);
+  var sH='';
+  PLAYERS.forEach(function(p){sH+='<div class="score-player-card"><div class="p-name">'+p+'</div><input type="number" id="score-'+pid(p)+'" placeholder="0" step="50" oninput="updateSum()"></div>';});
+  document.getElementById('score-inputs').innerHTML=sH;
+  var hH='';
+  HAND_DEFS.forEach(function(hd,hi){
+    var pH='';
+    PLAYERS.forEach(function(p){
+      var bH='';
+      for(var n=1;n<=6;n++)bH+='<button type="button" class="hqb" onclick="setHandVal('+hi+',\''+p+'\','+n+')">'+n+'</button>';
+      pH+='<div class="form-group"><label style="font-size:10px;color:'+hd.color+';">'+p+'</label><input type="number" id="hand-'+hi+'-'+pid(p)+'" placeholder="0" min="0" step="1" oninput="syncHandBtns('+hi+',\''+p+'\')"><div class="hand-quick-btns" id="hqb-'+hi+'-'+pid(p)+'">'+bH+'</div></div>';
+    });
+    hH+='<div class="add-hand-block" style="background:'+hd.bg+';border:1.5px solid '+hd.border+';"><div class="ah-title" style="color:'+hd.color+';">'+hd.label+'</div><div class="hand-grid">'+pH+'</div></div>';
+  });
+  document.getElementById('hands-inputs').innerHTML=hH;
+}
+function updateSum(){
+  var pos=0,neg=0;
+  PLAYERS.forEach(function(p){var v=parseFloat(document.getElementById('score-'+pid(p)).value)||0,el=document.getElementById('score-'+pid(p));if(el)el.className=v>0?'pos':v<0?'neg':'';if(v>0)pos+=v;else neg+=v;});
+  document.getElementById('sum-pos').textContent='+'+Math.round(pos).toLocaleString();
+  document.getElementById('sum-neg').textContent=Math.round(neg).toLocaleString();
+  var bal=pos+neg,bEl=document.getElementById('sum-bal');
+  bEl.textContent=fmt(bal);bEl.style.color=Math.abs(bal)<1?'#00C853':'#FF3D00';
+}
+function setHandVal(hi,p,n){var inp=document.getElementById('hand-'+hi+'-'+pid(p));if(!inp)return;var cur=parseInt(inp.value)||0;inp.value=cur===n?0:n;syncHandBtns(hi,p);}
+function syncHandBtns(hi,p){
+  var inp=document.getElementById('hand-'+hi+'-'+pid(p));if(!inp)return;
+  var val=parseInt(inp.value)||0,hd=HAND_DEFS[hi];
+  var btns=document.querySelectorAll('#hqb-'+hi+'-'+pid(p)+' .hqb');
+  btns.forEach(function(btn){var iS=parseInt(btn.textContent)===val&&val>0;btn.style.background=iS?hd.selBg:'';btn.style.color=iS?(hd.selColor||hd.color):'';btn.style.borderColor=iS?hd.selBorder:'';btn.style.fontWeight=iS?'700':'';});
+}
+function clearForm(){
+  PLAYERS.forEach(function(p){var el=document.getElementById('score-'+pid(p));if(el){el.value='';el.className='';}for(var hi=0;hi<3;hi++){var hel=document.getElementById('hand-'+hi+'-'+pid(p));if(hel)hel.value='';syncHandBtns(hi,p);}});
+  updateSum();
+}
+function addGame(){
+  var date=document.getElementById('new-date').value,venue=document.getElementById('new-venue').value;
+  if(!date){showToast('Date requise','err');return;}
+  var scores={};PLAYERS.forEach(function(p){scores[p]=parseFloat(document.getElementById('score-'+pid(p)).value)||0;});
+  if(!PLAYERS.some(function(p){return Math.abs(scores[p])>0.05;})){showToast('Entrez au moins un score','err');return;}
+  var carre={},sf={},tapis={};
+  PLAYERS.forEach(function(p){
+    var c=parseInt(document.getElementById('hand-0-'+pid(p)).value)||0,s=parseInt(document.getElementById('hand-1-'+pid(p)).value)||0,t=parseInt(document.getElementById('hand-2-'+pid(p)).value)||0;
+    if(c)carre[p]=c;if(s)sf[p]=s;if(t)tapis[p]=t;
+  });
+  var nx=GAMES.length?Math.max.apply(null,GAMES.map(function(g){return g.game;}))+1:1;
+  var ng={game:nx,date:date,venue:venue,scores:scores,carre:carre,sf:sf,tapis:tapis};
+  GAMES.push(ng);clearForm();showToast('Partie #'+nx+' enregistree !','ok');renderSummary();saveGame(ng);
+}
+
+var handSorts={carre:'total',sf:'total',tapis:'total'};
+function setHandSort(hand,sortBy){
+  handSorts[hand]=sortBy;
+  document.querySelectorAll('.sort-btns[data-hand="'+hand+'"] .sort-btn').forEach(function(b){b.classList.toggle('active',b.dataset.sort===sortBy);});
+  renderHandTable(hand);
+}
+function renderHandTable(hand){
+  var st=playerStats(),sb=handSorts[hand];
+  var pl=PLAYERS.filter(function(p){return (st[p][hand]||0)>0;});
+  pl.sort(function(a,b){if(sb==='avg'){var aA=st[a].played?st[a][hand]/st[a].played:0,aB=st[b].played?st[b][hand]/st[b].played:0;return aB-aA;}return (st[b][hand]||0)-(st[a][hand]||0);});
+  var h='<thead><tr><th>#</th><th>Joueur</th><th class="right">'+(sb==='total'?'Total v':'Total')+'</th><th class="right">'+(sb==='avg'?'Moy/partie v':'Moy/partie')+'</th></tr></thead><tbody>';
+  pl.forEach(function(p,i){var n=st[p][hand]||0,av=st[p].played?(n/st[p].played).toFixed(2):'-',rc=i===0?'r1':i===1?'r2':i===2?'r3':'';h+='<tr><td><span class="rank-num '+rc+'">'+(i+1)+'</span></td><td>'+p+'</td><td class="right"><span style="font-family:\'DM Mono\',monospace;'+(sb==='total'?'color:var(--text);font-weight:500;':'')+'">'+n+'</span></td><td class="right" style="font-family:\'DM Mono\',monospace;'+(sb==='avg'?'color:var(--text);font-weight:500;':'color:var(--muted);')+'">'+av+'</td></tr>';});
+  if(!pl.length)h+='<tr><td colspan="4" style="color:var(--muted);padding:16px;text-align:center;">-</td></tr>';
+  document.getElementById(hand+'-table').innerHTML=h+'</tbody>';
+}
+function renderHands(){renderHandTable('carre');renderHandTable('sf');renderHandTable('tapis');}
+
+function renderStats(){
+  var mo=monthlyStats(),st=playerStats(),months=Object.keys(mo).sort();
+  var aP=PLAYERS.filter(function(p){return st[p].played>0;});
+  var ch='<thead><tr><th>Joueur</th>'+months.map(function(m){return '<th class="right">'+(MONTHS[m]||m)+'</th>';}).join('')+'<th class="right">Total</th></tr></thead><tbody>';
+  aP.forEach(function(p){
+    var rt=months.reduce(function(a,m){return a+(mo[m][p]?mo[m][p].total:0);},0);
+    ch+='<tr><td class="player-name" style="color:'+PLAYER_COLORS[p]+'">'+p+'</td>';
+    months.forEach(function(m){var v=mo[m][p]?mo[m][p].total:0;ch+='<td class="right"><span class="score-val '+(v>0?'pos':v<0?'neg':'')+'" style="font-size:12px;">'+(v!==0?fmt(v):'-')+'</span></td>';});
+    ch+='<td class="right"><span class="score-val '+(rt>=0?'pos':'neg')+'" style="font-size:12px;font-weight:500;">'+fmt(rt)+'</span></td></tr>';
+  });
+  document.getElementById('monthly-chart-table').innerHTML=ch+'</tbody>';
+
+  var h='<thead><tr><th>Mois</th>'+aP.map(function(p){return '<th class="right" style="color:'+PLAYER_COLORS[p]+'">'+p+'</th>';}).join('')+'<th class="right">Parties</th></tr></thead><tbody>';
+  months.forEach(function(m){
+    var gim=GAMES.filter(function(g){return g.date&&g.date.slice(5,7)===m;}).length;
+    h+='<tr><td style="font-weight:500">'+(MONTHS[m]||m)+'</td>';
+    aP.forEach(function(p){var v=mo[m][p]?mo[m][p].total:0;h+='<td class="right"><span class="score-val '+(v>0?'pos':v<0?'neg':'')+'" style="font-size:12px;">'+(v!==0?fmt(v):'-')+'</span></td>';});
+    h+='<td class="right" style="color:var(--muted)">'+gim+'</td></tr>';
+  });
+  document.getElementById('monthly-table').innerHTML=h+'</tbody>';
+
+  var bw='<thead><tr><th>Joueur</th><th class="right">Meilleure</th><th class="right">Pire</th><th class="right">Moy/partie</th><th class="right">Carres</th><th class="right">SF</th></tr></thead><tbody>';
+  getRanking().forEach(function(p){
+    var s=st[p];if(!s.played)return;var av=Math.round(s.total/s.played);
+    bw+='<tr><td class="player-name" style="color:'+PLAYER_COLORS[p]+'">'+p+'</td><td class="right score-val pos">'+fmt(s.best)+'</td><td class="right score-val neg">'+fmt(s.worst)+'</td><td class="right score-val '+(av>=0?'pos':'neg')+'">'+fmt(av)+'</td><td class="right" style="font-family:\'DM Mono\',monospace;">'+s.carre+'</td><td class="right" style="font-family:\'DM Mono\',monospace;">'+s.sf+'</td></tr>';
+  });
+  document.getElementById('bestworst-table').innerHTML=bw+'</tbody>';
+}
+
+function exportToExcel(){
+  var wb=XLSX.utils.book_new(),st=playerStats(),rk=getRanking(),rM={};
+  rk.forEach(function(p,i){rM[p]=i+1;});
+  var aoa=[];
+  aoa.push(['# of games','Date',null,'Maher','Yves','Jean Loup','Samy','Guest','Nagi','Mica','Ralf','Total +','# of Players','# Winners','Venue',null,'Carre',null,null,null,null,null,null,null,null,'Straight Flush',null,null,null,null,null,null,null,null,'Tapis',null,null,null,null,null,null,null]);
+  aoa.push(['Ranking',null,null,rM['Maher'],rM['Yves'],rM['Jean Loup'],rM['Samy'],rM['Guest'],rM['Nagi'],rM['Mica'],rM['Ralf'],'en LL',null,null,null,null,'Maher','Yves','Jean Loup','Samy','Guest','Nagi','Mica','Ralf',null,'Maher','Yves','Jean Loup','Samy','Guest','Nagi','Mica','Ralf',null,'Maher','Yves','Jean Loup','Samy','Guest','Nagi','Mica','Ralf']);
+  aoa.push(['Score',null,null].concat(PLAYERS.map(function(p){return Math.round(st[p].total*10)/10;})).concat([null,null,null,null]).concat(PLAYERS.map(function(p){return st[p].carre;})).concat([null]).concat(PLAYERS.map(function(p){return st[p].sf;})).concat([null]).concat(PLAYERS.map(function(p){return st[p].tapis;})));
+  GAMES.forEach(function(g){
+    var tp=PLAYERS.reduce(function(a,p){return a+Math.max(0,g.scores[p]||0);},0);
+    var nP=PLAYERS.filter(function(p){return Math.abs(g.scores[p]||0)>0.05;}).length;
+    var nW=PLAYERS.filter(function(p){return (g.scores[p]||0)>0.05;}).length;
+    aoa.push([g.game,g.date||null,null].concat(PLAYERS.map(function(p){return g.scores[p]||0;})).concat([Math.round(tp),nP,nW||null,g.venue||null,null]).concat(PLAYERS.map(function(p){return g.carre[p]||null;})).concat([null]).concat(PLAYERS.map(function(p){return g.sf[p]||null;})).concat([null]).concat(PLAYERS.map(function(p){return g.tapis[p]||null;})));
+  });
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:9},{wch:13},{wch:2},{wch:10},{wch:10},{wch:11},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:11},{wch:10},{wch:10},{wch:10},{wch:2},{wch:9},{wch:9},{wch:11},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:2},{wch:9},{wch:9},{wch:11},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:2},{wch:9},{wch:9},{wch:11},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9}];
+  XLSX.utils.book_append_sheet(wb,ws,'Input');
+  XLSX.writeFile(wb,'Poker_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('Export telecharge !','ok');
+}
+
+var VIEW_NAMES=['summary','games','add','hands','stats'];
+var VIEW_FNS={summary:renderSummary,games:renderGames,add:renderAddForm,hands:renderHands,stats:renderStats};
+function showView(name){
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  document.querySelectorAll('nav button').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('view-'+name).classList.add('active');
+  var btns=document.querySelectorAll('nav button');
+  var idx=VIEW_NAMES.indexOf(name);
+  if(btns[idx])btns[idx].classList.add('active');
+  VIEW_FNS[name]();
+}
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show'+(type?' '+type:'');
+  setTimeout(function(){t.className='toast';},2800);
+}
+
+// ── OCR ──────────────────────────────────────────────────────────────────────
+var OCR_PROMPT = 'This is a handwritten poker scoring sheet used by a group in Beirut.\n\n' +
+'The players are: Maher, Yves, Jean Loup (written as JL or JLoup), Samy, Nagi, Mica, Ralf, Guest.\n' +
+'Player names on the sheet may be abbreviated or misspelled (e.g. "JL"=Jean Loup, "Ralf"=Ralf, "Yves" or "Yus"=Yves, "Maher" or "Ncher"=Maher, "Samy" or "Scmy"=Samy, "Nagi" or "Nager"=Nagi, "Mica"=Mica).\n\n' +
+'The sheet has TWO sections:\n' +
+'1. SCORES section (top): Each row = one player. There may be columns labeled C (cumulative/running total), - (losses this session), + (gains this session). ' +
+'The NET score for each player is the final result column (the + or - amount from this session, NOT the cumulative C column). ' +
+'Scores can be positive or negative integers (e.g. +2250, -1100, +1450). ' +
+'If a player has no value written, their score is 0.\n' +
+'2. SPECIAL HANDS section (bottom): columns C=Carres (four-of-a-kind), S=Straight Flush, T=Tapis (all-in). ' +
+'Counts are shown as tally marks (e.g. "|||" = 3, "|||| |" = 6, "||" = 2, "|" = 1). Count the vertical strokes carefully — groups of 5 are crossed with a diagonal.\n\n' +
+'Return ONLY a valid JSON object, no explanation, no markdown, in this exact format:\n' +
+'{"scores":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0},"carre":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0},"sf":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0},"tapis":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0}}\n' +
+'Only include non-zero values. Use the exact player names as keys. Return only the JSON.';
+
+function handleOcrImage(evt) {
+  var file = evt.target.files[0];
+  if (!file) return;
+  setOcrStatus('⏳ Préparation de l image...', 'info');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    document.getElementById('ocr-preview-img').src = dataUrl;
+    document.getElementById('ocr-preview-wrap').style.display = 'block';
+    // Resize image before sending to reduce payload size
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var maxW = 1200, maxH = 1600;
+      var w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        var ratio = Math.min(maxW/w, maxH/h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      var resized = canvas.toDataURL('image/jpeg', 0.85);
+      runOcr(resized);
+    };
+    img.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setOcrStatus(msg, type) {
+  var el = document.getElementById('ocr-status');
+  el.style.display = 'block';
+  el.textContent = msg;
+  el.style.background = type === 'ok' ? '#edfaf2' : type === 'err' ? '#fdecea' : '#e8f4fd';
+  el.style.color = type === 'ok' ? '#1a7a3c' : type === 'err' ? '#b91c1c' : '#0e5a8a';
+  el.style.border = '1px solid ' + (type === 'ok' ? '#a7f3c0' : type === 'err' ? '#fca5a5' : '#90cdf4');
+}
+
+function runOcr(dataUrl) {
+  setOcrStatus('⏳ Analyse en cours...', 'info');
+  var base64 = dataUrl.split(',')[1];
+  var mediaType = dataUrl.split(';')[0].split(':')[1];
+  fetch(GS_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify({action: 'ocr', imageData: base64, mediaType: mediaType})
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (!data || data.status !== 'ok') {
+      setOcrStatus('❌ Erreur Apps Script: ' + JSON.stringify(data).slice(0,120), 'err');
+      return;
+    }
+    var text = data.text || '';
+    text = text.replace(/```json|```/g, '').trim();
+    var parsed;
+    try { parsed = JSON.parse(text); } catch(e) {
+      var m = text.match(/\{[\s\S]*\}/);
+      if (m) { try { parsed = JSON.parse(m[0]); } catch(e2) { setOcrStatus('❌ Parsing echoue. Reponse: ' + text.slice(0,150), 'err'); return; } }
+      else { setOcrStatus('❌ Pas de JSON trouve. Reponse: ' + text.slice(0,150), 'err'); return; }
+    }
+    applyOcrResult(parsed);
+  }).catch(function(err) {
+    setOcrStatus('❌ Erreur reseau: ' + err.message, 'err');
+  });
+}
+
+function applyOcrResult(d) {
+  var filled = 0;
+  PLAYERS.forEach(function(p) {
+    var sc = d.scores && d.scores[p] !== undefined ? d.scores[p] : 0;
+    var el = document.getElementById('score-' + pid(p));
+    if (el) { el.value = sc || ''; if (sc) { el.className = sc > 0 ? 'pos' : sc < 0 ? 'neg' : ''; filled++; } }
+  });
+  updateSum();
+  // special hands
+  var handKeys = ['carre', 'sf', 'tapis'];
+  handKeys.forEach(function(hk, hi) {
+    PLAYERS.forEach(function(p) {
+      var val = d[hk] && d[hk][p] ? d[hk][p] : 0;
+      var inp = document.getElementById('hand-' + hi + '-' + pid(p));
+      if (inp) { inp.value = val || ''; syncHandBtns(hi, p); }
+    });
+  });
+  if (filled > 0) {
+    setOcrStatus('✅ ' + filled + ' joueur(s) détectés ! Vérifie et ajuste si nécessaire.', 'ok');
+  } else {
+    setOcrStatus('⚠️ Aucun score détecté. Vérifie la photo et entre les valeurs manuellement.', 'err');
+  }
+}
+// ── END OCR ───────────────────────────────────────────────────────────────────
+
+loadData();
+</script>
+</body>
+</html>
