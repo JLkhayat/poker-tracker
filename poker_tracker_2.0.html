@@ -38,7 +38,7 @@ td{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
 tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.03);}
 .rank-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--muted);}
 .rank-num.r1{color:var(--accent);}.rank-num.r2{color:#C0C0C0;}.rank-num.r3{color:#CD7F32;}
-.player-name{font-weight:500;}
+.player-name{font-weight:500;white-space:nowrap;font-size:13px;}
 .score-val{font-family:'DM Mono',monospace;font-size:13px;}
 .score-val.pos{color:var(--green);}.score-val.neg{color:var(--red);}
 .win-bar-wrap{display:flex;align-items:center;gap:8px;}
@@ -129,6 +129,31 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
   #view-add{padding:12px;}
 }
 @media(max-width:480px){nav button{padding:5px 7px;font-size:11px;}.metric-val{font-size:24px;}}
+
+.player-modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:1000;align-items:flex-end;justify-content:center;overscroll-behavior:contain;}
+.player-modal-overlay.open{display:flex;}
+.player-modal{background:#1e2530;border-radius:18px 18px 0 0;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -4px 30px rgba(0,0,0,0.6);}
+.player-modal-header{padding:16px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.07);}
+.player-modal-name{font-size:18px;font-weight:700;color:var(--text);}
+.player-modal-close{background:rgba(255,255,255,0.08);border:none;color:var(--muted);font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.player-modal-body{overflow-y:auto;padding:12px 16px 24px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.ph-cols{grid-template-columns:75px 1fr 20px 38px 38px 38px;}
+.ph-row{display:grid;gap:4px;align-items:center;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;}
+.ph-row:last-child{border-bottom:none;}
+.ph-date{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-align:center;}
+.ph-score{font-weight:600;text-align:right;font-size:13px;}
+.ph-badge{font-size:12px;padding:2px 0;border-radius:4px;text-align:center;min-height:20px;line-height:20px;}
+.ph-carre{background:rgba(251,191,36,0.15);color:#fbbf24;}
+.ph-sf{background:rgba(139,92,246,0.15);color:#8b5cf6;}
+.ph-tapis{background:rgba(34,211,238,0.15);color:#22d3ee;}
+.ph-empty{opacity:0;}
+.ph-total-row{display:grid;gap:4px;align-items:center;padding:12px 2px 4px;margin-top:6px;border-top:2px solid rgba(255,255,255,0.2);}
+.ph-total-label{color:var(--muted);font-size:12px;}
+.ph-total-score{font-size:18px;font-weight:700;text-align:right;}
+.ph-total-badge{font-size:13px;padding:3px 0;border-radius:4px;text-align:center;font-weight:700;}
+.ph-header{display:grid;gap:4px;padding:4px 2px 8px;font-size:11px;color:var(--muted);border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:2px;text-align:center;}
+.player-name-link{cursor:pointer;}
+.player-name-link:hover{text-decoration:underline;text-underline-offset:2px;}
 </style>
 </head>
 <body>
@@ -374,10 +399,16 @@ function renderSummary(){
     '<div class="metric"><div class="metric-label">Pire perte unique</div><div class="metric-val neg">'+fmt(wV)+'</div><div class="metric-val neu" style="font-size:20px;">'+wP+'</div></div>'+
     '<div class="metric"><div class="metric-label">Total pots</div><div class="metric-val neu">'+Math.round(tP/1000)+'k</div></div>';
 
+  var lastG = GAMES.length ? GAMES[GAMES.length-1] : null;
   var rH='<thead><tr><th>#</th><th>Joueur</th><th class="right">Score</th><th class="right">Parties</th><th>Victoires</th></tr></thead><tbody>';
   rk.forEach(function(p,i){
     var s=st[p],rc=i===0?'r1':i===1?'r2':i===2?'r3':'',pct=s.played?Math.round(s.won/s.played*100):0;
-    rH+='<tr><td><span class="rank-num '+rc+'">'+(i+1)+'</span></td><td class="player-name">'+p+'</td><td class="right"><span class="score-val '+(s.total>=0?'pos':'neg')+'">'+fmt(s.total)+'</span></td><td class="right" style="color:var(--muted)">'+s.played+'</td><td><div class="win-bar-wrap"><div class="win-bar"><div class="win-bar-fill" style="width:'+pct+'%"></div></div><span class="win-pct">'+pct+'%</span></div></td></tr>';
+    var lastScore = lastG ? (lastG.scores[p] || 0) : 0;
+    var arrow = '';
+    if (lastScore > 0) arrow = '<span style="color:#00C853;font-size:14px;display:inline-block;width:16px;text-align:center;">&#8679;</span>';
+    else if (lastScore < 0) arrow = '<span style="color:#FF3D00;font-size:14px;display:inline-block;width:16px;text-align:center;">&#8681;</span>';
+    else arrow = '<span style="display:inline-block;width:16px;"></span>';
+    rH+='<tr><td><span class="rank-num '+rc+'">'+(i+1)+'</span></td><td class="player-name player-name-link" onclick="showPlayerHistory(\''+p+'\')" >'+arrow+p+'</td><td class="right"><span class="score-val '+(s.total>=0?'pos':'neg')+'">'+fmt(s.total)+'</span></td><td class="right" style="color:var(--muted)">'+s.played+'</td><td><div class="win-bar-wrap"><div class="win-bar"><div class="win-bar-fill" style="width:'+pct+'%"></div></div><span class="win-pct">'+pct+'%</span></div></td></tr>';
   });
   document.getElementById('ranking-table').innerHTML=rH+'</tbody>';
 
@@ -690,7 +721,64 @@ function applyOcrResult(d) {
 }
 // ── END OCR ───────────────────────────────────────────────────────────────────
 
+
+function showPlayerHistory(p) {
+  document.body.style.overflow = 'hidden';
+  var color = PLAYER_COLORS[p] || 'var(--text)';
+  document.getElementById('player-modal-name').innerHTML = '<span style="color:'+color+'">'+p+'</span>';
+  var games = GAMES.filter(function(g){ return Math.abs(g.scores[p]||0)>0.05 || (g.carre[p]||0)+(g.sf[p]||0)+(g.tapis[p]||0)>0; });
+  if (!games.length) {
+    document.getElementById('player-modal-body').innerHTML = '<p style="color:var(--muted);padding:20px;text-align:center;">Aucune partie enregistree.</p>';
+    document.getElementById('player-modal-overlay').classList.add('open');
+    return;
+  }
+  var cum = 0;
+  var totalC=0,totalS=0,totalT=0;
+  var rows = games.map(function(g) {
+    var sc = g.scores[p]||0, c=g.carre[p]||0, s=g.sf[p]||0, t=g.tapis[p]||0;
+    cum += sc;
+    totalC+=c; totalS+=s; totalT+=t;
+    var ds = g.date ? g.date.slice(8)+'/'+g.date.slice(5,7) : '#'+g.game;
+    var scCl = sc>0?'pos':sc<0?'neg':'neu';
+    return '<div class="ph-row ph-cols">'+
+      '<div class="ph-date">'+ds+'</div>'+
+      '<div class="ph-score score-val '+scCl+'">'+fmt(sc)+'</div>'+
+      '<div></div>'+
+      '<div class="ph-badge ph-carre">'+(c?c:'')+'</div>'+
+      '<div class="ph-badge ph-sf">'+(s?s:'')+'</div>'+
+      '<div class="ph-badge ph-tapis">'+(t?t:'')+'</div>'+
+      '</div>';
+  }).join('');
+  var cumCl = cum>=0?'pos':'neg';
+  var header = '<div class="ph-header ph-cols"><div>Date</div><div>Score</div><div></div><div>C</div><div>SF</div><div>T</div></div>';
+  var total = '<div class="ph-total-row ph-cols">'+
+    '<div class="ph-total-label">Total</div>'+
+    '<div class="ph-total-score score-val '+cumCl+'">'+fmt(cum)+'</div>'+
+    '<div></div>'+
+    '<div class="ph-total-badge ph-carre">'+(totalC?totalC:'')+'</div>'+
+    '<div class="ph-total-badge ph-sf">'+(totalS?totalS:'')+'</div>'+
+    '<div class="ph-total-badge ph-tapis">'+(totalT?totalT:'')+'</div>'+
+    '</div>';
+  document.getElementById('player-modal-body').innerHTML = header + rows + total;
+  document.getElementById('player-modal-overlay').classList.add('open');
+}
+function closePlayerModal(e) {
+  if (e.target === document.getElementById('player-modal-overlay')) {
+    document.getElementById('player-modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
 loadData();
 </script>
+
+<div class="player-modal-overlay" id="player-modal-overlay" onclick="closePlayerModal(event)">
+  <div class="player-modal">
+    <div class="player-modal-header">
+      <div class="player-modal-name" id="player-modal-name"></div>
+      <button class="player-modal-close" onclick="document.getElementById('player-modal-overlay').classList.remove('open');document.body.style.overflow='';">✕</button>
+    </div>
+    <div class="player-modal-body" id="player-modal-body"></div>
+  </div>
+</div>
 </body>
 </html>
