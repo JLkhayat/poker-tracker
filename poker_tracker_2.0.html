@@ -22,9 +22,9 @@ nav button.active{color:var(--accent);background:rgba(255,214,0,0.1);}
 main{padding:28px 32px;max-width:1400px;margin:0 auto;}
 .view{display:none;}.view.active{display:block;}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:28px;}
-.metric{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;}
-.metric-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;}
-.metric-val{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;}
+.metric-label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:4px;}
+.metric-val{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;}
 .metric-val.pos{color:var(--green);}.metric-val.neg{color:var(--red);}.metric-val.neu{color:var(--accent);}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
 .card-header{padding:14px 20px;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;}
@@ -129,7 +129,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
   .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   #view-add{padding:12px;}
 }
-@media(max-width:480px){nav button{padding:5px 7px;font-size:11px;}.metric-val{font-size:24px;}}
+@media(max-width:480px){nav button{padding:5px 7px;font-size:11px;}.metric-val{font-size:18px;}}
 
 .player-modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:1000;align-items:flex-end;justify-content:center;overscroll-behavior:contain;}
 .player-modal-overlay.open{display:flex;}
@@ -395,9 +395,9 @@ function renderSummary(){
   var wP=PLAYERS.filter(function(p){return st[p].worst===wV;})[0]||'';
   document.getElementById('metrics-row').innerHTML=
     '<div class="metric"><div class="metric-label">Parties jouees</div><div class="metric-val neu">'+tG+'</div><div class="metric-sub">saison 2026</div></div>'+
-    '<div class="metric"><div class="metric-label">Leader</div><div class="metric-val neu" style="font-size:22px;">'+ld+'</div><div class="metric-val pos" style="font-size:28px;">'+fmt(ls)+'</div></div>'+
-    '<div class="metric"><div class="metric-label">Meilleur gain unique</div><div class="metric-val pos">'+fmt(bV)+'</div><div class="metric-val neu" style="font-size:20px;">'+bP+'</div></div>'+
-    '<div class="metric"><div class="metric-label">Pire perte unique</div><div class="metric-val neg">'+fmt(wV)+'</div><div class="metric-val neu" style="font-size:20px;">'+wP+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Leader</div><div class="metric-val neu" style="font-size:16px;">'+ld+'</div><div class="metric-val pos" style="font-size:15px;">'+fmt(ls)+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Meilleur gain unique</div><div class="metric-val pos">'+fmt(bV)+'</div><div class="metric-val neu" style="font-size:15px;">'+bP+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Pire perte unique</div><div class="metric-val neg">'+fmt(wV)+'</div><div class="metric-val neu" style="font-size:15px;">'+wP+'</div></div>'+
     '<div class="metric"><div class="metric-label">Total pots</div><div class="metric-val neu">'+Math.round(tP/1000)+'k</div></div>';
 
   var lastG = GAMES.length ? GAMES[GAMES.length-1] : null;
