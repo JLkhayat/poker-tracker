@@ -303,7 +303,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
 
 <div id="dictation-modal" style="display:none;position:fixed;inset:0;background:rgba(10,10,10,0.92);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
   <div style="color:#FFD600;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:16px;">🎙️ Dictee en cours...</div>
-  <div id="dictation-transcript" style="color:#ccc;font-size:14px;max-width:360px;text-align:center;margin-bottom:36px;min-height:60px;line-height:1.5;">Parle : date, lieu, et pour chaque joueur son score et ses mains...</div>
+  <div id="dictation-transcript" style="color:#ccc;font-size:14px;max-width:360px;text-align:center;margin-bottom:36px;min-height:60px;line-height:1.5;">Parle : date, lieu, et pour chaque joueur son score et ses mains.<br><span style="color:#38bdf8;font-size:12px;">Astuce : fais une petite pause entre chaque info (ex: "Maher"... pause... "plus 1300"... pause... "Ralf"...) pour une bien meilleure reconnaissance.</span></div>
   <button type="button" id="dictation-stop-btn" onclick="stopDictation()" style="width:96px;height:96px;border-radius:50%;background:#FF3D00;border:none;font-size:36px;color:#fff;cursor:pointer;box-shadow:0 0 0 8px rgba(255,61,0,0.15);">&#9632;</button>
   <div style="color:#777;font-size:12px;margin-top:20px;">Appuie pour arreter et valider</div>
 </div>
@@ -781,7 +781,7 @@ function openDictationModal() {
 }
 
 function startDictationRecognition(SR) {
-  document.getElementById('dictation-transcript').textContent = 'Parle : date, lieu, et pour chaque joueur son score et ses mains...';
+  document.getElementById('dictation-transcript').innerHTML = 'Parle : date, lieu, et pour chaque joueur son score et ses mains.<br><span style="color:#38bdf8;font-size:12px;">Astuce : fais une petite pause entre chaque info pour une bien meilleure reconnaissance.</span>';
   document.getElementById('dictation-modal').style.display = 'flex';
   dictationRecognition = new SR();
   dictationRecognition.lang = 'fr-FR';
