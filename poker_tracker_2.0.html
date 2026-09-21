@@ -759,7 +759,7 @@ function openDictationModal() {
       stream.getTracks().forEach(function(t) { t.stop(); });
       startDictationRecognition(SR);
     }).catch(function() {
-      showToast('Micro refuse - autorise-le dans les reglages du site', 'err');
+      setOcrStatus('⚠️ Micro refuse. Sur iPhone : Reglages > Safari > Microphone > cherche ce site > Autoriser (meme depuis l icone "Ecran d accueil").', 'err');
     });
   } else {
     startDictationRecognition(SR);
