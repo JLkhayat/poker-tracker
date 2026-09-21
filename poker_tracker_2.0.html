@@ -754,6 +754,19 @@ var dictationActive = false;
 function openDictationModal() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { showToast('Dictee non supportee sur ce navigateur', 'err'); return; }
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+      stream.getTracks().forEach(function(t) { t.stop(); });
+      startDictationRecognition(SR);
+    }).catch(function() {
+      showToast('Micro refuse - autorise-le dans les reglages du site', 'err');
+    });
+  } else {
+    startDictationRecognition(SR);
+  }
+}
+
+function startDictationRecognition(SR) {
   document.getElementById('dictation-transcript').textContent = 'Parle : date, lieu, et pour chaque joueur son score et ses mains...';
   document.getElementById('dictation-modal').style.display = 'flex';
   dictationRecognition = new SR();
