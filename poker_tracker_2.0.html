@@ -308,6 +308,20 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
   <div style="color:#777;font-size:12px;margin-top:20px;">Appuie pour arreter et valider</div>
 </div>
 
+<div id="dictation-review-modal" style="display:none;position:fixed;inset:0;background:rgba(10,10,10,0.94);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+  <div style="color:#FFD600;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;margin-bottom:16px;">Verification dictee</div>
+  <div style="width:100%;max-width:380px;">
+    <div style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Texte transcrit (ce que le telephone a entendu)</div>
+    <div id="dictation-review-transcript" style="color:#ccc;font-size:13px;text-align:left;margin-bottom:18px;line-height:1.5;background:#1a1a1a;border-radius:8px;padding:12px 14px;white-space:pre-wrap;"></div>
+    <div style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Ce que Claude a compris</div>
+    <div id="dictation-review-summary" style="color:#F5F5F5;font-size:14px;text-align:left;margin-bottom:24px;line-height:1.6;background:#1a1a1a;border-radius:8px;padding:12px 14px;white-space:pre-wrap;"></div>
+  </div>
+  <div style="display:flex;gap:12px;">
+    <button type="button" onclick="closeDictationReview()" style="padding:12px 20px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;font-size:14px;cursor:pointer;">Annuler</button>
+    <button type="button" onclick="confirmDictationFill()" style="padding:12px 24px;border-radius:8px;border:none;background:#FFD600;color:#1a1a1a;font-size:14px;font-weight:600;cursor:pointer;">Remplir le formulaire</button>
+  </div>
+</div>
+
 <script>
 var PLAYERS = ['Maher','Yves','Jean Loup','Samy','Guest','Nagi','Mica','Ralf'];
 var PLAYER_COLORS = {'Maher':'#FF6B6B','Yves':'#4ECDC4','Jean Loup':'#FFE66D','Samy':'#A78BFA','Guest':'#F97316','Nagi':'#34D399','Mica':'#FFD600','Ralf':'#60A5FA'};
@@ -850,7 +864,7 @@ function runDictationParse(transcript) {
       if (m) { try { parsed = JSON.parse(m[0]); } catch(e2) { setOcrStatus('❌ Parsing echoue. Reponse: ' + text.slice(0, 150), 'err'); return; } }
       else { setOcrStatus('❌ Pas de JSON trouve. Reponse: ' + text.slice(0, 150), 'err'); return; }
     }
-    applyDictationResult(parsed);
+    showDictationReview(transcript, parsed);
   }).catch(function(err) {
     setOcrStatus('❌ Erreur reseau: ' + err.message, 'err');
   });
@@ -866,6 +880,48 @@ function applyDictationResult(d) {
     if (opts.indexOf(d.venue) !== -1) vSel.value = d.venue;
   }
   applyOcrResult(d);
+}
+
+var dictationLastParsed = null;
+
+function buildDictationSummary(d) {
+  var lines = [];
+  lines.push('Date : ' + (d.date || '(non detectee)'));
+  lines.push('Lieu : ' + (d.venue || '(non detecte)'));
+  var scoreLines = [];
+  PLAYERS.forEach(function(p) {
+    var v = d.scores && d.scores[p] ? d.scores[p] : 0;
+    if (v) scoreLines.push(p + ' ' + (v > 0 ? '+' : '') + v);
+  });
+  lines.push('Scores : ' + (scoreLines.length ? scoreLines.join(', ') : '(aucun)'));
+  var handDefs = [['carre', 'Carre'], ['sf', 'Straight Flush'], ['tapis', 'Tapis']];
+  handDefs.forEach(function(hd) {
+    var hk = hd[0], label = hd[1], handLines = [];
+    PLAYERS.forEach(function(p) {
+      var v = d[hk] && d[hk][p] ? d[hk][p] : 0;
+      if (v) handLines.push(p + ' x' + v);
+    });
+    if (handLines.length) lines.push(label + ' : ' + handLines.join(', '));
+  });
+  return lines.join('\n');
+}
+
+function showDictationReview(transcript, parsed) {
+  dictationLastParsed = parsed;
+  document.getElementById('ocr-status').style.display = 'none';
+  document.getElementById('dictation-review-transcript').textContent = transcript;
+  document.getElementById('dictation-review-summary').textContent = buildDictationSummary(parsed);
+  document.getElementById('dictation-review-modal').style.display = 'flex';
+}
+
+function closeDictationReview() {
+  document.getElementById('dictation-review-modal').style.display = 'none';
+  dictationLastParsed = null;
+}
+
+function confirmDictationFill() {
+  if (dictationLastParsed) applyDictationResult(dictationLastParsed);
+  closeDictationReview();
 }
 // ── FIN DICTEE VOCALE ────────────────────────────────────────────────────────
 
