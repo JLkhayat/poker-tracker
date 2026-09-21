@@ -216,7 +216,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
 
   <!-- OCR SCAN CARD -->
   <div class="add-card" id="ocr-card">
-    <div class="add-card-title"><span class="dot" style="background:#38bdf8;"></span> Scanner la feuille</div>
+    <div class="add-card-title" style="justify-content:space-between;">
+      <span style="display:flex;align-items:center;gap:8px;"><span class="dot" style="background:#38bdf8;"></span> Scanner la feuille</span>
+      <button type="button" id="dictate-btn" class="btn-sync" onclick="openDictationModal()" style="padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:6px;white-space:nowrap;">🎤 Dicter</button>
+    </div>
     <div id="ocr-drop-zone" style="border:2px dashed #c8d8e0;border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all 0.15s;background:#f0f8fc;" onclick="document.getElementById('ocr-file-input').click()">
       <div style="font-size:32px;margin-bottom:8px;">📷</div>
       <div style="font-size:14px;font-weight:600;color:#1a6a8a;margin-bottom:4px;">Prendre ou choisir une photo</div>
@@ -297,6 +300,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
 
 </main>
 <div class="toast" id="toast"></div>
+
+<div id="dictation-modal" style="display:none;position:fixed;inset:0;background:rgba(10,10,10,0.92);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+  <div style="color:#FFD600;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:16px;">🎙️ Dictee en cours...</div>
+  <div id="dictation-transcript" style="color:#ccc;font-size:14px;max-width:360px;text-align:center;margin-bottom:36px;min-height:60px;line-height:1.5;">Parle : date, lieu, et pour chaque joueur son score et ses mains...</div>
+  <button type="button" id="dictation-stop-btn" onclick="stopDictation()" style="width:96px;height:96px;border-radius:50%;background:#FF3D00;border:none;font-size:36px;color:#fff;cursor:pointer;box-shadow:0 0 0 8px rgba(255,61,0,0.15);">&#9632;</button>
+  <div style="color:#777;font-size:12px;margin-top:20px;">Appuie pour arreter et valider</div>
+</div>
 
 <script>
 var PLAYERS = ['Maher','Yves','Jean Loup','Samy','Guest','Nagi','Mica','Ralf'];
@@ -736,6 +746,115 @@ function applyOcrResult(d) {
   }
 }
 // ── END OCR ───────────────────────────────────────────────────────────────────
+
+// ── DICTEE VOCALE ────────────────────────────────────────────────────────────
+var dictationRecognition = null;
+var dictationActive = false;
+
+function openDictationModal() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Dictee non supportee sur ce navigateur', 'err'); return; }
+  document.getElementById('dictation-transcript').textContent = 'Parle : date, lieu, et pour chaque joueur son score et ses mains...';
+  document.getElementById('dictation-modal').style.display = 'flex';
+  dictationRecognition = new SR();
+  dictationRecognition.lang = 'fr-FR';
+  dictationRecognition.continuous = true;
+  dictationRecognition.interimResults = true;
+  var finalText = '';
+  dictationRecognition.onresult = function(e) {
+    var interim = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      var t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t + ' '; else interim += t;
+    }
+    document.getElementById('dictation-transcript').textContent = (finalText + interim).trim();
+  };
+  dictationRecognition.onerror = function(e) {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      dictationActive = false;
+      showToast('Acces au micro refuse', 'err');
+      closeDictationModal();
+    }
+  };
+  dictationRecognition.onend = function() {
+    if (dictationActive) { try { dictationRecognition.start(); } catch(e) {} }
+  };
+  try {
+    dictationRecognition.start();
+    dictationActive = true;
+  } catch(e) {
+    showToast('Erreur demarrage dictee: ' + e.message, 'err');
+    closeDictationModal();
+  }
+}
+
+function closeDictationModal() {
+  document.getElementById('dictation-modal').style.display = 'none';
+}
+
+function stopDictation() {
+  dictationActive = false;
+  if (dictationRecognition) { try { dictationRecognition.stop(); } catch(e) {} }
+  var transcript = document.getElementById('dictation-transcript').textContent.trim();
+  closeDictationModal();
+  if (!transcript || transcript.indexOf('Parle : date, lieu') === 0) { showToast('Rien entendu, reessaie', 'err'); return; }
+  runDictationParse(transcript);
+}
+
+function runDictationParse(transcript) {
+  setOcrStatus('⏳ Analyse de la dictee...', 'info');
+  var today = new Date().toISOString().slice(0, 10);
+  var prompt = 'Ceci est une dictee en francais decrivant une soiree de poker entre amis a Beyrouth. Transcris-la en JSON structure.\n\n' +
+    'Les joueurs possibles sont : Maher, Yves, Jean Loup (parfois dit "JL"), Samy, Nagi, Mica, Ralf, Guest.\n' +
+    'IMPORTANT : la reconnaissance vocale francaise transcrit souvent mal ces noms (certains sont libanais ou etrangers) et les termes de poker en anglais. Fais une correspondance PHONETIQUE, pas exacte : par exemple "Maher" peut etre transcrit "Mager", "Maer", "Mahair", "Ma air", "Mahere" ou similaire -> c\'est toujours Maher. "Jean Loup" peut sonner comme "Jean Loop", "Jeanloup". "Ralf" peut sonner "Ralph". "Nagi" peut sonner "Naji", "Nagy". Si un mot dans le texte dicte ressemble phonetiquement a un nom de la liste (meme mal orthographie), associe-le a ce joueur.\n' +
+    'Le lieu (venue) est generalement le nom d\'un des joueurs chez qui la partie s\'est deroulee (ex: "chez Maher" -> "Maher").\n' +
+    'La date d\'aujourd\'hui est ' + today + '. Si la dictee mentionne "aujourd\'hui", "hier", un jour de la semaine ou une date, calcule la date exacte au format YYYY-MM-DD. Si aucune date n\'est mentionnee, mets le champ date a null.\n\n' +
+    'Pour chaque joueur mentionne avec un score (gain ou perte), remplis sa valeur (les gains sont positifs, les pertes sont negatives). Les joueurs NON mentionnes ont un score de 0.\n' +
+    'Pour les mains speciales Carre (four of a kind), Straight Flush (SF/quinte flush), et Tapis (all-in) : remplis le nombre mentionne pour chaque joueur. Les joueurs NON mentionnes pour une main donnee ont 0 pour cette main.\n' +
+    'ATTENTION : "Straight Flush" est un terme anglais que la reconnaissance vocale francaise deforme souvent : il peut apparaitre comme "street flush", "strette flush", "estrait flush", "streach fleuche", "flush" tout court, ou toute variante phonetique proche de "straight flush" -> compte-le toujours comme Straight Flush. "Carre" peut apparaitre sans accent ("carre", "care", "carrez"). "Tapis" est generalement bien transcrit car c\'est un mot francais courant. Plus generalement, la dictee peut ne pas etre parfaitement comprise par la reconnaissance vocale : fais TOUJOURS de ton mieux pour deviner l\'intention a partir des sons proches, sans jamais t\'arreter ou laisser un champ a null/0 juste parce qu\'un mot est mal orthographie dans le texte dicte.\n\n' +
+    'Retourne UNIQUEMENT un objet JSON valide, sans explication, sans markdown, dans ce format exact (inclus TOUJOURS les 8 joueurs dans scores/carre/sf/tapis, avec 0 pour ceux non mentionnes) :\n' +
+    '{"date":null,"venue":null,"scores":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0},"carre":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0},"sf":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0},"tapis":{"Maher":0,"Yves":0,"Jean Loup":0,"Samy":0,"Guest":0,"Nagi":0,"Mica":0,"Ralf":0}}\n\n' +
+    'Texte dicte : "' + transcript.replace(/"/g, '\\"') + '"';
+  fetch('/.netlify/functions/claude-proxy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{role: 'user', content: [{type: 'text', text: prompt}]}]
+    })
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (!data || !data.content) {
+      setOcrStatus('❌ Erreur proxy: ' + JSON.stringify(data).slice(0, 120), 'err');
+      return;
+    }
+    var text = '';
+    data.content.forEach(function(b) { if (b.type === 'text') text += b.text; });
+    text = text.replace(/```json|```/g, '').trim();
+    var parsed;
+    try { parsed = JSON.parse(text); } catch(e) {
+      var m = text.match(/\{[\s\S]*\}/);
+      if (m) { try { parsed = JSON.parse(m[0]); } catch(e2) { setOcrStatus('❌ Parsing echoue. Reponse: ' + text.slice(0, 150), 'err'); return; } }
+      else { setOcrStatus('❌ Pas de JSON trouve. Reponse: ' + text.slice(0, 150), 'err'); return; }
+    }
+    applyDictationResult(parsed);
+  }).catch(function(err) {
+    setOcrStatus('❌ Erreur reseau: ' + err.message, 'err');
+  });
+}
+
+function applyDictationResult(d) {
+  if (d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date)) {
+    document.getElementById('new-date').value = d.date;
+  }
+  if (d.venue) {
+    var vSel = document.getElementById('new-venue');
+    var opts = Array.prototype.map.call(vSel.options, function(o) { return o.value; });
+    if (opts.indexOf(d.venue) !== -1) vSel.value = d.venue;
+  }
+  applyOcrResult(d);
+}
+// ── FIN DICTEE VOCALE ────────────────────────────────────────────────────────
 
 
 function showPlayerHistory(p) {
